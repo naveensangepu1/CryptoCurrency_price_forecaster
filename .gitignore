@@ -10,18 +10,20 @@ env/
 ENV/
 
 # Python packaging & distribution
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
+# The leading "/" limits these to the project root. Without it, "lib/" also matched
+# frontend/src/lib and kept the frontend's helper files out of the repo.
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
 *.egg-info/
 .installed.cfg
 *.egg
