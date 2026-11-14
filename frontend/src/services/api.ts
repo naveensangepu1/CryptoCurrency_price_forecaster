@@ -7,7 +7,10 @@ import type {
   AuthResponse
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Empty in development (Vite proxies /api to localhost:8000). In production builds it's the
+// backend's address, e.g. https://my-api.onrender.com. A trailing slash is dropped so we
+// don't end up requesting "//api/...".
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

@@ -1,13 +1,13 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import List
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-from ..config import SUPPORTED_COINS, DEFAULT_USD_INR_RATE
+from ..config import SUPPORTED_COINS
 from .market_data import fetch_ticker_history
 from .currency import get_usd_to_inr_rate
 from ..models.schemas import ForecastPoint, ForecastMetrics, ForecastResponse, HistoricalPoint

@@ -1,0 +1,15 @@
+# Settings for the backend's dev tools. The app's own dependencies are in requirements.txt.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+# Only rules that catch real mistakes: syntax errors, undefined names, unused imports.
+# Style rules are left out on purpose so CI doesn't fail on formatting preferences.
+select = ["E4", "E7", "E9", "F"]

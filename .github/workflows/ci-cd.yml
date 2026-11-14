@@ -1,0 +1,189 @@
+name: CI/CD
+
+# CI  - every pull request into main and every push to main:
+#       frontend lint + type-check + build, backend lint + tests, backend Docker build.
+# CD  - pushes to main only, and only after all CI jobs pass:
+#       backend image -> GitHub Container Registry (+ host deploy hook if configured),
+#       frontend -> GitHub Pages (once VITE_API_URL is set).
+# One-time setup for the CD part is described in README.md under "CI/CD".
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: # "Run workflow" button in the Actions tab
+
+# A new commit on a pull request cancels the older run. Runs on main are never
+# cancelled so a deployment can't be cut off half way.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+  # true for pushes / manual runs on main, false for pull requests
+  IS_RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+
+jobs:
+  # ---------------------------------------------------------------- CI
+
+  frontend:
+    name: Frontend · lint, type-check, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Type-check and build
+        run: npm run build
+
+  backend:
+    name: Backend · lint, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Tests (pytest)
+        run: pytest
+
+  backend-image:
+    name: Backend · Docker image
+    needs: backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the image name (registry names must be lowercase)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/crypto-forecaster-api" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: env.IS_RELEASE == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # On pull requests this only checks that the image builds. On main it also pushes it.
+      - name: Build image (pushed only from main)
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          push: ${{ env.IS_RELEASE == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------- CD
+
+  deploy-backend:
+    name: Deploy backend
+    needs: [frontend, backend-image]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOOK: ${{ secrets.BACKEND_DEPLOY_HOOK_URL }}
+    steps:
+      - name: Trigger the hosting service's deploy hook
+        if: env.DEPLOY_HOOK != ''
+        run: curl --fail --silent --show-error --request POST "$DEPLOY_HOOK" > /dev/null
+
+      - name: Skip (no deploy hook configured)
+        if: env.DEPLOY_HOOK == ''
+        run: >-
+          echo "::notice title=Backend not redeployed::BACKEND_DEPLOY_HOOK_URL is not set.
+          The new image was still pushed to GitHub Container Registry. See README > CI/CD."
+
+  deploy-frontend:
+    name: Deploy frontend to GitHub Pages
+    needs: [frontend, backend-image]
+    # Skipped until the repository variable VITE_API_URL points at a running backend,
+    # because the site can't show any prices without one.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.VITE_API_URL != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Build for GitHub Pages
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

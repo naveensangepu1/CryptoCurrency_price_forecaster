@@ -54,7 +54,11 @@ CryptoCurrency_Price_Forecaster/
 │   │       ├── market_data.py   # Yahoo Finance data fetching and caching
 │   │       ├── forecaster.py    # Scikit-Learn Linear Regression engine
 │   │       └── currency.py      # Real-time USD/INR exchange rate service
+│   ├── tests/                   # pytest suite (fake Yahoo data, no network needed)
+│   ├── Dockerfile               # Production image for the API
+│   ├── pyproject.toml           # pytest + ruff settings
 │   ├── requirements.txt         # Backend Python dependencies
+│   ├── requirements-dev.txt     # Test and lint tools
 │   └── run.py                   # Server startup script
 │
 ├── frontend/
@@ -95,6 +99,7 @@ CryptoCurrency_Price_Forecaster/
 │           ├── LoadingSkeleton.tsx  # First-load message
 │           └── ErrorAlert.tsx       # Error message with retry
 │
+├── .github/workflows/ci-cd.yml  # GitHub Actions: checks on every PR, deploys from main
 ├── .gitignore                   # Git ignore rules for Python and Node
 ├── requirements.txt             # Root Python dependencies
 └── README.md                    # Project documentation
@@ -104,7 +109,7 @@ CryptoCurrency_Price_Forecaster/
 
 ## 🚀 How to Start Frontend and Backend
 
-Make sure you have **Python 3.9+** and **Node.js 18+** installed. Run the backend and frontend in separate terminal windows.
+Make sure you have **Python 3.9+** and **Node.js 20.19+** (22 recommended; Vite 8 needs at least 20.19) installed. Run the backend and frontend in separate terminal windows.
 
 ### 1. Start the Backend (FastAPI)
 
@@ -144,3 +149,48 @@ npm run dev
 - **Frontend App:** `http://localhost:5173`
 
 *(The Vite development server automatically proxies `/api` requests to `http://localhost:8000`)*
+
+---
+
+## CI/CD
+
+Everything lives in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) and runs on GitHub Actions.
+
+| When | What runs |
+|---|---|
+| Pull request into `main` | **Frontend:** `npm ci`, oxlint, TypeScript check, production build<br>**Backend:** ruff, pytest, Docker image build (not pushed) |
+| Push to `main` (e.g. merging a PR) | All of the above, then if everything passed:<br>**Backend:** image pushed to `ghcr.io/naveensangepu1/crypto-forecaster-api` and your host's deploy hook called<br>**Frontend:** built and published to GitHub Pages |
+
+The deploy jobs never run on pull requests, and on `main` they only start after every check has passed.
+
+### Run the same checks on your machine
+
+```bash
+# backend
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+ruff check .
+pytest
+
+# frontend
+cd frontend
+npm ci
+npm run lint
+npm run build
+```
+
+The backend tests replace Yahoo Finance with fixed fake prices (see `backend/tests/conftest.py`), so they run offline and always give the same result.
+
+### One-time setup for deployment
+
+GitHub Pages can only host the frontend, so the backend needs a host that runs Docker images. These steps use [Render](https://render.com) as the example; any host with a deploy webhook works the same way.
+
+1. **Backend host.** On Render, create a *Web Service* from this repository with **Root Directory** `backend` and **Runtime** Docker. Set the health check path to `/api/health`. Turn **Auto-Deploy off**, so it only deploys after CI passes. Copy the service's **Deploy Hook** URL and its public URL (e.g. `https://crypto-forecaster-api.onrender.com`).
+2. **Deploy hook secret.** In GitHub: *Settings → Secrets and variables → Actions → Secrets → New repository secret*. Name: `BACKEND_DEPLOY_HOOK_URL`, value: the deploy hook URL.
+3. **Turn on Pages.** *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
+4. **Tell the frontend where the API is.** *Settings → Secrets and variables → Actions → Variables → New repository variable*. Name: `VITE_API_URL`, value: the backend's public URL from step 1.
+5. Push to `main` (or use *Actions → CI/CD → Run workflow*). The site appears at `https://naveensangepu1.github.io/CryptoCurrency_price_forecaster/`.
+
+Until step 4 is done, the frontend deploy job is skipped (the site would have no prices without a backend). Until step 2 is done, the backend job only publishes the Docker image and leaves a note in the run summary.
+
+The Docker image on GitHub Container Registry is private by default. To let anyone `docker pull` it, open the package from your GitHub profile → *Packages* → *Package settings* → *Change visibility*.

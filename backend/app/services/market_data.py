@@ -1,12 +1,10 @@
 import time
 import logging
-from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import yfinance as yf
 import pandas as pd
-import numpy as np
 
-from ..config import SUPPORTED_COINS, VALID_RANGES, DEFAULT_USD_INR_RATE
+from ..config import SUPPORTED_COINS, VALID_RANGES
 from .currency import get_usd_to_inr_rate
 from ..models.schemas import MarketSummaryItem, HistoricalPoint
 
@@ -48,7 +46,8 @@ def fetch_ticker_history(symbol: str, range_key: str = "1Y") -> pd.DataFrame:
             df = ticker.history(period="1y", interval="1d")
             
         if not df.empty:
-            df.reset_index(inplace=True)
+            # pandas 3.1 deprecates inplace=, and pandas 4 removes it
+            df = df.reset_index()
             # Ensure Date column is string ISO
             if "Date" in df.columns:
                 df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d %H:%M" if range_key == "7D" else "%Y-%m-%d")
