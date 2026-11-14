@@ -1,0 +1,6 @@
+# Extra packages for running the checks locally and in CI.
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+pytest>=8.0
+httpx2>=2.0        # used by FastAPI's TestClient in current Starlette releases
+httpx>=0.27        # fallback for older Starlette versions
+ruff>=0.17,<0.18
