@@ -1,11 +1,10 @@
+import yfinance as yf 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import streamlit as st
 from datetime import date
-import yfinance as yf 
 from plotly import graph_objs as go
 
 START = "2026-04-01"
@@ -17,7 +16,7 @@ html_temp = """
     """
 st.markdown(html_temp,unsafe_allow_html=True)
 
-currency=("ETH-USD","BTC-USD","BNB-USD","MATIC-USD","TRX-USD","DOGE-USD","SOL-USD","ATOM-USD")
+currency=("BTC-USD","ETH-USD","BNB-USD","MATIC-USD","TRX-USD","DOGE-USD","SOL-USD","ATOM-USD")
 selected_currency=st.selectbox("select coin",currency)
 
 n_days = st.slider("Days of prediction",1,30)
