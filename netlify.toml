@@ -1,0 +1,7 @@
+[build]
+  command = "npm --prefix frontend ci && npm --prefix frontend run build"
+  publish = "frontend/dist"
+
+[build.environment]
+  # Netlify Server requires Node.js 24+
+  NODE_VERSION = "24"

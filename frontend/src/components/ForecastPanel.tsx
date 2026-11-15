@@ -41,7 +41,7 @@ export const ForecastPanel: React.FC<ForecastPanelProps> = ({
         <h3 id="forecast-heading" className="font-serif text-xl font-semibold">
           Next {selectedDays} {selectedDays === 1 ? 'day' : 'days'}
         </h3>
-        <span className="text-xs text-ink-3">Linear regression (scikit-learn), 80/20 train/test split</span>
+        <span className="text-xs text-ink-3">Linear regression, 80/20 train/test split</span>
       </div>
 
       {/* Horizon */}

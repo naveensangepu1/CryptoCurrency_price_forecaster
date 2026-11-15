@@ -21,7 +21,7 @@ export const AboutPage: React.FC<{ coins: CoinInfo[] }> = ({ coins }) => (
             later.
           </li>
           <li>
-            Shuffle those pairs, fit scikit-learn's <code className="font-mono text-[13px]">LinearRegression</code> on
+            Shuffle those pairs, fit a least-squares linear regression on
             80% of them and score it on the other 20%.
           </li>
           <li>
@@ -101,11 +101,11 @@ export const AboutPage: React.FC<{ coins: CoinInfo[] }> = ({ coins }) => (
         <h3 className="border-b border-ink pb-1.5 font-serif text-lg font-semibold text-ink">Built with</h3>
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
           <dt className="text-ink-3">Backend</dt>
-          <dd>FastAPI, Uvicorn</dd>
+          <dd>Hono on Netlify Server, Netlify Database</dd>
           <dt className="text-ink-3">Model</dt>
-          <dd>scikit-learn, pandas, NumPy</dd>
+          <dd>Least-squares linear regression (TypeScript)</dd>
           <dt className="text-ink-3">Data</dt>
-          <dd>yfinance</dd>
+          <dd>Yahoo Finance chart API</dd>
           <dt className="text-ink-3">Frontend</dt>
           <dd>React, TypeScript, Vite</dd>
           <dt className="text-ink-3">Charts</dt>
